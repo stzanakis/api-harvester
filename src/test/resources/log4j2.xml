@@ -19,8 +19,8 @@
   </Appenders>
   <Loggers>
     <Root level="INFO">
-      <AppenderRef ref="FileInfo" level="INFO"/>
-      <AppenderRef ref="FileError" level="ERROR"/>
+      <AppenderRef ref="STDOUT" level="INFO"/>
+      <AppenderRef ref="STDOUT" level="ERROR"/>
     </Root>
   </Loggers>
 </Configuration>

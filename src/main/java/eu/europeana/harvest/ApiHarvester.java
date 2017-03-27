@@ -12,6 +12,9 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import org.apache.commons.io.FileUtils;
 import org.apache.http.client.utils.URIBuilder;
 import org.json.simple.JSONArray;
@@ -34,7 +37,7 @@ public class ApiHarvester {
   private int limit;
   private String offsetParameterName;
   private int offset;
-  private File singleHarvestOutputDirectory;
+  private File rootHarvestOutputDirectory;
 
   public ApiHarvester(String apiEndpoint, String recordListField,
       String offsetParameterName, int offset, String limitParameterName, int limit,
@@ -45,17 +48,21 @@ public class ApiHarvester {
     this.recordListField = recordListField;
     this.limitParameterName = limitParameterName;
     this.limit = limit;
-    this.singleHarvestOutputDirectory = new File(harvestOutputDirectory,
-        "harvest_wtih_timestamp_uid");
-    if (this.singleHarvestOutputDirectory.exists()) {
-      FileUtils.deleteDirectory(singleHarvestOutputDirectory);
+
+    DateFormat dateFormat = new SimpleDateFormat("yyyy_MM_dd_HHmm");
+    Date date = new Date();
+
+    this.rootHarvestOutputDirectory = new File(harvestOutputDirectory,
+        "harvest-" + dateFormat.format(date));
+    if (this.rootHarvestOutputDirectory.exists()) {
+      FileUtils.deleteDirectory(rootHarvestOutputDirectory);
     }
-    this.singleHarvestOutputDirectory.mkdir();
+    this.rootHarvestOutputDirectory.mkdir();
   }
 
   public void harvest(boolean parallel, boolean singleDirectory)
       throws IOException, URISyntaxException, ParseException {
-    LOGGER.info("Harvesting is starting..");
+    LOGGER.info("Harvesting is starting with directory: " + rootHarvestOutputDirectory);
 
     //Check if url is valid
     new URL(apiEndpoint);
@@ -80,7 +87,7 @@ public class ApiHarvester {
 //  }
 //
 //  private void harvestIterative() {
-//    DirectoryController directoryController = new DirectoryController(10, singleHarvestOutputDirectory);
+//    DirectoryController directoryController = new DirectoryController(10, rootHarvestOutputDirectory);
 //    File fileToWriteOnDirectoryStructure = directoryController
 //        .getFileToWriteOnDirectoryStructure(offset, limit);
 //
@@ -105,7 +112,7 @@ public class ApiHarvester {
 
         LOGGER.info("Response records: " + responseRecordsCount);
         if (responseRecordsCount != 0) {
-          File output = new File(singleHarvestOutputDirectory, "request." + offset + "-" +
+          File output = new File(rootHarvestOutputDirectory, "request." + offset + "-" +
               (responseRecordsCount < limit ? (offset + responseRecordsCount) : (offset + limit))
               + ".txt");
           FileUtils.writeStringToFile(output, recordResult);
@@ -143,7 +150,7 @@ public class ApiHarvester {
     in.close();
 
     String responseString = response.toString();
-    return responseString.equals("")?null:responseString;
+    return responseString.equals("") ? null : responseString;
   }
 
 
