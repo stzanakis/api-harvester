@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+  <Appenders>
+    <File name="FileInfo" fileName="./logs/migration.log">
+      <PatternLayout>
+        <Pattern>%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5p %C:%L [%t] - %m%n</Pattern>
+      </PatternLayout>
+    </File>
+    <File name="FileError" fileName="./logs/error.log">
+      <PatternLayout>
+        <Pattern>%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5p %C:%L [%t] - %m%n</Pattern>
+      </PatternLayout>
+    </File>
+  </Appenders>
+  <Loggers>
+    <Root level="INFO">
+      <AppenderRef ref="FileInfo" level="INFO"/>
+      <AppenderRef ref="FileError" level="ERROR"/>
+    </Root>
+  </Loggers>
+</Configuration>
