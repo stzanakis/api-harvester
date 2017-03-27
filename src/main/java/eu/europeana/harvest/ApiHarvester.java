@@ -12,7 +12,6 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.util.List;
 import org.apache.commons.io.FileUtils;
 import org.apache.http.client.utils.URIBuilder;
 import org.json.simple.JSONArray;
@@ -46,7 +45,8 @@ public class ApiHarvester {
     this.recordListField = recordListField;
     this.limitParameterName = limitParameterName;
     this.limit = limit;
-    this.singleHarvestOutputDirectory = new File(harvestOutputDirectory, "harvest_wtih_timestamp_uid");
+    this.singleHarvestOutputDirectory = new File(harvestOutputDirectory,
+        "harvest_wtih_timestamp_uid");
     if (this.singleHarvestOutputDirectory.exists()) {
       FileUtils.deleteDirectory(singleHarvestOutputDirectory);
     }
@@ -89,35 +89,36 @@ public class ApiHarvester {
 
   private void harvestIterativeSingleDirectory()
       throws URISyntaxException, IOException, ParseException {
-    List<String> records;
+    String response;
     int recordsCounter = 0;
+    String recordResult;
+    int responseRecordsCount;
     do {
-      records = getNextResult(offset, limit);
-      int responseRecordsCount = 0;
-      if (records != null) {
-        responseRecordsCount = records.size();
-      }
+      recordResult = null;
+      responseRecordsCount = 0;
+      response = getNextResult(offset, limit);
+      ResultFormat resultFormat;
+      if (response != null && !response.equals("")) {
+        resultFormat = identifyResultFormat(response);
+        responseRecordsCount = getTotalRecordsInResponse(resultFormat, response);
+        recordResult = getStringRepresentation(resultFormat, response);
 
-      LOGGER.info("Response records: " + responseRecordsCount);
-      if (responseRecordsCount != 0) {
-        File output = new File(singleHarvestOutputDirectory, "request." + offset + "-" +
-            (responseRecordsCount < limit ? (offset + responseRecordsCount) : (offset + limit))
-            + ".txt");
-        String jsonString = JSONArray.toJSONString(records);
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        JsonParser jp = new JsonParser();
-        JsonElement je = jp.parse(jsonString);
-        String prettyJsonString = gson.toJson(je);
-        FileUtils.writeStringToFile(output, prettyJsonString);
+        LOGGER.info("Response records: " + responseRecordsCount);
+        if (responseRecordsCount != 0) {
+          File output = new File(singleHarvestOutputDirectory, "request." + offset + "-" +
+              (responseRecordsCount < limit ? (offset + responseRecordsCount) : (offset + limit))
+              + ".txt");
+          FileUtils.writeStringToFile(output, recordResult);
+        }
+        offset += limit;
+        recordsCounter += responseRecordsCount;
+        LOGGER.info("Records harvested until now: " + recordsCounter);
       }
-      offset += limit;
-      recordsCounter += responseRecordsCount;
-      LOGGER.info("Records harvested until now: " + recordsCounter);
-    } while (records != null && records.size() != 0);
+    } while (recordResult != null && responseRecordsCount != 0);
     LOGGER.info("Harvest finished with total records harvested: " + recordsCounter);
   }
 
-  private List<String> getNextResult(int offset, int limit)
+  private String getNextResult(int offset, int limit)
       throws URISyntaxException, IOException, ParseException {
     String urlString = apiEndpoint;
     URIBuilder uriBuilder = new URIBuilder(urlString);
@@ -141,9 +142,52 @@ public class ApiHarvester {
     }
     in.close();
 
-    JSONObject json = (JSONObject) new JSONParser().parse(response.toString());
-    List<String> records = (List) json.get(recordListField);
-    return records;
+    String responseString = response.toString();
+    return responseString.equals("")?null:responseString;
   }
 
+
+  private ResultFormat identifyResultFormat(String result) {
+    if (result.startsWith("<")) {
+      return ResultFormat.XML;
+    } else {
+      return ResultFormat.JSON;
+    }
+  }
+
+  private String getStringRepresentation(ResultFormat resultFormat, String result)
+      throws ParseException {
+    String prettyRecords = null;
+    switch (resultFormat) {
+      case JSON:
+        JSONObject json = (JSONObject) new JSONParser().parse(result);
+        JSONArray jsonArray = (JSONArray) json.get(recordListField);
+        String records = jsonArray.toJSONString();
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        JsonParser jp = new JsonParser();
+        JsonElement je = jp.parse(records);
+        prettyRecords = gson.toJson(je);
+        break;
+      case XML:
+        break;
+    }
+    return prettyRecords;
+  }
+
+  private int getTotalRecordsInResponse(ResultFormat resultFormat, String response)
+      throws ParseException {
+    switch (resultFormat) {
+      case JSON:
+        JSONObject json = (JSONObject) new JSONParser().parse(response);
+        JSONArray jsonArray = (JSONArray) json.get(recordListField);
+        return jsonArray.size();
+      case XML:
+        break;
+    }
+    return 0;
+  }
+
+  public enum ResultFormat {
+    JSON, XML
+  }
 }
