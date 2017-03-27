@@ -1,13 +1,11 @@
 package eu.europeana.harvest;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonParser;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.StringReader;
+import java.io.StringWriter;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -15,14 +13,25 @@ import java.net.URL;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 import org.apache.commons.io.FileUtils;
 import org.apache.http.client.utils.URIBuilder;
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.json.XML;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.w3c.dom.Document;
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
 
 /**
  * @author Simon Tzanakis (Simon.Tzanakis@europeana.eu)
@@ -38,8 +47,9 @@ public class ApiHarvester {
   private String offsetParameterName;
   private int offset;
   private File rootHarvestOutputDirectory;
+  private boolean jsonConvertToXml;
 
-  public ApiHarvester(String apiEndpoint, String recordListField,
+  public ApiHarvester(String apiEndpoint, String directoryNamePrefix, boolean jsonConvertToXml, String recordListField,
       String offsetParameterName, int offset, String limitParameterName, int limit,
       String harvestOutputDirectory) throws IOException {
     this.apiEndpoint = apiEndpoint;
@@ -48,12 +58,13 @@ public class ApiHarvester {
     this.recordListField = recordListField;
     this.limitParameterName = limitParameterName;
     this.limit = limit;
+    this.jsonConvertToXml = jsonConvertToXml;
 
     DateFormat dateFormat = new SimpleDateFormat("yyyy_MM_dd_HHmm");
     Date date = new Date();
 
     this.rootHarvestOutputDirectory = new File(harvestOutputDirectory,
-        "harvest-" + dateFormat.format(date));
+        directoryNamePrefix + "-" + dateFormat.format(date));
     if (this.rootHarvestOutputDirectory.exists()) {
       FileUtils.deleteDirectory(rootHarvestOutputDirectory);
     }
@@ -61,7 +72,7 @@ public class ApiHarvester {
   }
 
   public void harvest(boolean parallel, boolean singleDirectory)
-      throws IOException, URISyntaxException, ParseException {
+      throws IOException, URISyntaxException, TransformerException {
     LOGGER.info("Harvesting is starting with directory: " + rootHarvestOutputDirectory);
 
     //Check if url is valid
@@ -95,7 +106,7 @@ public class ApiHarvester {
 //  }
 
   private void harvestIterativeSingleDirectory()
-      throws URISyntaxException, IOException, ParseException {
+      throws URISyntaxException, IOException, TransformerException {
     String response;
     int recordsCounter = 0;
     String recordResult;
@@ -108,13 +119,13 @@ public class ApiHarvester {
       if (response != null && !response.equals("")) {
         resultFormat = identifyResultFormat(response);
         responseRecordsCount = getTotalRecordsInResponse(resultFormat, response);
-        recordResult = getStringRepresentation(resultFormat, response);
+        recordResult = getStringRepresentation(resultFormat, jsonConvertToXml, response);
 
         LOGGER.info("Response records: " + responseRecordsCount);
         if (responseRecordsCount != 0) {
           File output = new File(rootHarvestOutputDirectory, "request." + offset + "-" +
               (responseRecordsCount < limit ? (offset + responseRecordsCount) : (offset + limit))
-              + ".txt");
+              + ((resultFormat == resultFormat.JSON && jsonConvertToXml == false)?".json":".xml"));
           FileUtils.writeStringToFile(output, recordResult);
         }
         offset += limit;
@@ -126,7 +137,7 @@ public class ApiHarvester {
   }
 
   private String getNextResult(int offset, int limit)
-      throws URISyntaxException, IOException, ParseException {
+      throws URISyntaxException, IOException {
     String urlString = apiEndpoint;
     URIBuilder uriBuilder = new URIBuilder(urlString);
     uriBuilder.setParameter(limitParameterName, String.valueOf(limit));
@@ -162,18 +173,31 @@ public class ApiHarvester {
     }
   }
 
-  private String getStringRepresentation(ResultFormat resultFormat, String result)
-      throws ParseException {
+  private String getStringRepresentation(ResultFormat resultFormat, boolean jsonConvertToXml, String result)
+      throws TransformerException {
     String prettyRecords = null;
     switch (resultFormat) {
       case JSON:
-        JSONObject json = (JSONObject) new JSONParser().parse(result);
-        JSONArray jsonArray = (JSONArray) json.get(recordListField);
-        String records = jsonArray.toJSONString();
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        JsonParser jp = new JsonParser();
-        JsonElement je = jp.parse(records);
-        prettyRecords = gson.toJson(je);
+        if (jsonConvertToXml) {
+          JSONObject json = new JSONObject(result);
+          JSONArray jsonArray = json.getJSONArray(recordListField);
+          String xmlString = XML.toString(jsonArray, "record");
+          xmlString = "<root>" + xmlString + "</root>";
+
+          Transformer transformer = TransformerFactory.newInstance().newTransformer();
+          transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+          transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
+          StreamResult resultxml = new StreamResult(new StringWriter());
+          DOMSource source = new DOMSource(parseXmlFile(xmlString));
+          transformer.transform(source, resultxml);
+          prettyRecords = resultxml.getWriter().toString();
+        }
+        else {
+          JSONObject json = new JSONObject(result);
+          JSONArray jsonArray = json.getJSONArray(recordListField);
+          prettyRecords = jsonArray.toString(4);
+        }
+
         break;
       case XML:
         break;
@@ -181,13 +205,12 @@ public class ApiHarvester {
     return prettyRecords;
   }
 
-  private int getTotalRecordsInResponse(ResultFormat resultFormat, String response)
-      throws ParseException {
+  private int getTotalRecordsInResponse(ResultFormat resultFormat, String response) {
     switch (resultFormat) {
       case JSON:
-        JSONObject json = (JSONObject) new JSONParser().parse(response);
+        JSONObject json = new JSONObject(response);
         JSONArray jsonArray = (JSONArray) json.get(recordListField);
-        return jsonArray.size();
+        return jsonArray.length();
       case XML:
         break;
     }
@@ -196,5 +219,20 @@ public class ApiHarvester {
 
   public enum ResultFormat {
     JSON, XML
+  }
+
+  private Document parseXmlFile(String in) {
+    try {
+      DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+      DocumentBuilder db = dbf.newDocumentBuilder();
+      InputSource is = new InputSource(new StringReader(in));
+      return db.parse(is);
+    } catch (ParserConfigurationException e) {
+      throw new RuntimeException(e);
+    } catch (SAXException e) {
+      throw new RuntimeException(e);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 }
