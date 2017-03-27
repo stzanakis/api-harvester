@@ -17,7 +17,7 @@
         <configuration>
           <archive>
             <manifest>
-              <mainClass>eu.europeana.harvest.Main.java</mainClass>
+              <mainClass>eu.europeana.harvest.Main</mainClass>
             </manifest>
           </archive>
           <descriptorRefs>

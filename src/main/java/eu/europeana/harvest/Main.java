@@ -1,5 +1,6 @@
 package eu.europeana.harvest;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.Properties;
@@ -18,7 +19,7 @@ public class Main
     public static void main( String[] args ) throws IOException, URISyntaxException, ParseException {
         LOGGER.info("Initialize Properties");
         Properties properties = new Properties();
-        properties.load(Main.class.getResourceAsStream(propertiesPath));
+        properties.load(new FileInputStream(propertiesPath));
         String apiEndpoint = properties.getProperty("api.endpoint");
         String offsetParameterName = properties.getProperty("offset.parameter.name");
         String limitParameterName = properties.getProperty("limit.parameter.name");
