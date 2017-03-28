@@ -1,5 +1,6 @@
 package eu.europeana.harvest;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -19,8 +20,13 @@ public class Main
     public static void main( String[] args )
         throws IOException, URISyntaxException, TransformerException {
         LOGGER.info("Initialize Properties");
+        File propertiesFile = new File(propertiesPath);
         Properties properties = new Properties();
-        properties.load(new FileInputStream(propertiesPath));
+        //Properties on the level of the jar or in the resources directory
+        if(propertiesFile.exists())
+            properties.load(new FileInputStream(propertiesPath));
+        else
+            properties.load(Main.class.getResourceAsStream("/" + propertiesPath));
         String apiEndpoint = properties.getProperty("api.endpoint");
         String directoryNamePrefix = properties.getProperty("directory.name.prefix");
         boolean jsonConvertToXml = Boolean.parseBoolean(properties.getProperty("json.convert.to.xml"));
