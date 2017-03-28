@@ -30,6 +30,7 @@ import org.json.XML;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
+import org.w3c.dom.Node;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
@@ -72,7 +73,7 @@ public class ApiHarvester {
   }
 
   public void harvest(boolean parallel, boolean singleDirectory)
-      throws IOException, URISyntaxException, TransformerException {
+      throws IOException, URISyntaxException, TransformerException, ParserConfigurationException, SAXException {
     LOGGER.info("Harvesting is starting with directory: " + rootHarvestOutputDirectory);
 
     //Check if url is valid
@@ -106,7 +107,7 @@ public class ApiHarvester {
 //  }
 
   private void harvestIterativeSingleDirectory()
-      throws URISyntaxException, IOException, TransformerException {
+      throws URISyntaxException, IOException, TransformerException, ParserConfigurationException, SAXException {
     String response;
     int recordsCounter = 0;
     String recordResult;
@@ -160,13 +161,13 @@ public class ApiHarvester {
     }
     in.close();
 
-    String responseString = response.toString();
+    String responseString = response.toString().trim();
     return responseString.equals("") ? null : responseString;
   }
 
 
   private ResultFormat identifyResultFormat(String result) {
-    if (result.startsWith("<")) {
+    if (result.trim().startsWith("<")) {
       return ResultFormat.XML;
     } else {
       return ResultFormat.JSON;
@@ -200,24 +201,33 @@ public class ApiHarvester {
 
         break;
       case XML:
+        StringWriter sw = new StringWriter();
+        Document document = parseXmlFile(result);
+        Node node = document.getElementsByTagName(recordListField).item(0);
+        Transformer t = TransformerFactory.newInstance().newTransformer();
+        t.setOutputProperty(OutputKeys.INDENT, "yes");
+        t.transform(new DOMSource(node), new StreamResult(sw));
+        prettyRecords = sw.toString();
         break;
     }
     return prettyRecords;
   }
 
-  private int getTotalRecordsInResponse(ResultFormat resultFormat, String response) {
+  private int getTotalRecordsInResponse(ResultFormat resultFormat, String response)
+      throws ParserConfigurationException, IOException, SAXException {
     switch (resultFormat) {
       case JSON:
         JSONObject json = new JSONObject(response);
         JSONArray jsonArray = (JSONArray) json.get(recordListField);
         return jsonArray.length();
       case XML:
-        break;
+        Document document = parseXmlFile(response);
+        return document.getElementsByTagName(recordListField).getLength();
     }
     return 0;
   }
 
-  public enum ResultFormat {
+  private enum ResultFormat {
     JSON, XML
   }
 

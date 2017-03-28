@@ -5,9 +5,11 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.Properties;
+import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.TransformerException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.xml.sax.SAXException;
 
 /**
  * @author Simon Tzanakis (Simon.Tzanakis@europeana.eu)
@@ -18,7 +20,7 @@ public class Main
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
     private static final String propertiesPath = "harvester.properties";
     public static void main( String[] args )
-        throws IOException, URISyntaxException, TransformerException {
+        throws IOException, URISyntaxException, TransformerException, ParserConfigurationException, SAXException {
         LOGGER.info("Initialize Properties");
         File propertiesFile = new File(propertiesPath);
         Properties properties = new Properties();
