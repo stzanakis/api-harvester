@@ -38,8 +38,11 @@ public class Main
         int limit = Integer.parseInt(properties.getProperty("limit"));
         String recordListField = properties.getProperty("record.list.field");
         String harvestOutputDirectory = properties.getProperty("harvest.output.directory");
+        String rootElementName = properties.getProperty("root.element.name");
 
         ApiHarvester apiHarvester = new ApiHarvester(apiEndpoint, directoryNamePrefix, jsonConvertToXml, recordListField, offsetParameterName, offset, limitParameterName, limit, harvestOutputDirectory);
+        if (jsonConvertToXml)
+            apiHarvester.setRootElementName(rootElementName);
         LOGGER.info("Initiate Harvest");
         apiHarvester.harvest(false, true);
     }

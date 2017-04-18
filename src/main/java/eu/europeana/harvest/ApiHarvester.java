@@ -49,8 +49,10 @@ public class ApiHarvester {
   private int offset;
   private File rootHarvestOutputDirectory;
   private boolean jsonConvertToXml;
+  private String rootElementName = "root";
 
-  public ApiHarvester(String apiEndpoint, String directoryNamePrefix, boolean jsonConvertToXml, String recordListField,
+  public ApiHarvester(String apiEndpoint, String directoryNamePrefix, boolean jsonConvertToXml,
+      String recordListField,
       String offsetParameterName, int offset, String limitParameterName, int limit,
       String harvestOutputDirectory) throws IOException {
     this.apiEndpoint = apiEndpoint;
@@ -183,7 +185,7 @@ public class ApiHarvester {
           JSONObject json = new JSONObject(result);
           JSONArray jsonArray = json.getJSONArray(recordListField);
           String xmlString = XML.toString(jsonArray, "record");
-          xmlString = "<root>" + xmlString + "</root>";
+          xmlString = "<"+ rootElementName +">" + xmlString + "</"+rootElementName+">";
 
           Transformer transformer = TransformerFactory.newInstance().newTransformer();
           transformer.setOutputProperty(OutputKeys.INDENT, "yes");
@@ -244,5 +246,9 @@ public class ApiHarvester {
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  public void setRootElementName(String rootElementName) {
+    this.rootElementName = rootElementName;
   }
 }
