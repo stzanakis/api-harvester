@@ -27,7 +27,7 @@ import org.xml.sax.SAXException;
 public class Main {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
-  private static final String propertiesPath = "harvester.properties";
+  private static final String propertiesPath = "api-harvester-run/harvester.properties";
 
   public static void main(String[] args)
       throws IOException, URISyntaxException, TransformerException, ParserConfigurationException, SAXException, ParseException {

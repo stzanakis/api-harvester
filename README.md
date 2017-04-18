@@ -3,16 +3,34 @@
 A tool for harvesting data from an api  
 Very generic implementation that could workfor some cases that accept an offset and limit query parameters.
 
-
-
-
 **Usage**
 
+*Harvest mode:*
 * Download the directory api-harvester-run  
-* Updadte the harvester.properties file appropriately 
+* Update the harvester.properties file appropriately 
 * Run the .jar file `java -jar api-harvester-1.0-SNAPSHOT-jar-with-dependencies.jar`
 
 It will output harvesting information on the terminal but also under the directory logs, which will be generated.
+
+*Convert mode:*
+
+Convert from json files to xml files.  
+usage: xml converter  
+ `-c,--convert`                     enable only convertion of input  
+ `-d,--outputDirectoryPath <arg>`   output directory path  
+ `-f,--filePath <arg>`              file to read from  
+ `-h,--help`                        help output  
+ `-l,--listElementNames <arg>`      if json is list, set the element names  
+ `-o,--outputFileName <arg>`        output filename  
+ `-r,--rootElementName <arg>`       root element name  
+
+Examples:  
+Convert json file located in `/tmp/test.json` to current directory `./` with output file name `test.xml`.  
+If json is a list and does not start with a bracket `{` then each element will have the tag name `record`  
+`java -jar api-harvester-1.0-SNAPSHOT-jar-with-dependencies.jar -c -d ./ -o test.xml -l record -f /tmp/test.json`
+
+Run with providing a wrapper element as well:
+`java -jar api-harvester-1.0-SNAPSHOT-jar-with-dependencies.jar -c -d ./ -o test.xml -l record -r root -f /tmp/test.json`
 
 **harvester.properties**  
 The user who runs the .jar file should have write access to the directories specified for the generation of the directories and files.  
