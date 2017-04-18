@@ -4,7 +4,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.StringReader;
 import java.io.StringWriter;
 import java.net.HttpURLConnection;
 import java.net.URI;
@@ -13,8 +12,6 @@ import java.net.URL;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
@@ -31,7 +28,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
-import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
 /**
@@ -50,6 +46,7 @@ public class ApiHarvester {
   private File rootHarvestOutputDirectory;
   private boolean jsonConvertToXml;
   private String rootElementName = "root";
+  private String listElementNames = "record";
 
   public ApiHarvester(String apiEndpoint, String directoryNamePrefix, boolean jsonConvertToXml,
       String recordListField,
@@ -120,7 +117,7 @@ public class ApiHarvester {
       response = getNextResult(offset, limit);
       ResultFormat resultFormat;
       if (response != null && !response.equals("")) {
-        resultFormat = identifyResultFormat(response);
+        resultFormat = StringUtils.identifyResultFormat(response);
         responseRecordsCount = getTotalRecordsInResponse(resultFormat, response);
         recordResult = getStringRepresentation(resultFormat, jsonConvertToXml, response);
 
@@ -167,15 +164,6 @@ public class ApiHarvester {
     return responseString.equals("") ? null : responseString;
   }
 
-
-  private ResultFormat identifyResultFormat(String result) {
-    if (result.trim().startsWith("<")) {
-      return ResultFormat.XML;
-    } else {
-      return ResultFormat.JSON;
-    }
-  }
-
   private String getStringRepresentation(ResultFormat resultFormat, boolean jsonConvertToXml, String result)
       throws TransformerException {
     String prettyRecords = null;
@@ -184,14 +172,14 @@ public class ApiHarvester {
         if (jsonConvertToXml) {
           JSONObject json = new JSONObject(result);
           JSONArray jsonArray = json.getJSONArray(recordListField);
-          String xmlString = XML.toString(jsonArray, "record");
+          String xmlString = XML.toString(jsonArray, listElementNames);
           xmlString = "<"+ rootElementName +">" + xmlString + "</"+rootElementName+">";
 
           Transformer transformer = TransformerFactory.newInstance().newTransformer();
           transformer.setOutputProperty(OutputKeys.INDENT, "yes");
           transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
           StreamResult resultxml = new StreamResult(new StringWriter());
-          DOMSource source = new DOMSource(parseXmlFile(xmlString));
+          DOMSource source = new DOMSource(StringUtils.parseXmlFile(xmlString));
           transformer.transform(source, resultxml);
           prettyRecords = resultxml.getWriter().toString();
         }
@@ -204,7 +192,7 @@ public class ApiHarvester {
         break;
       case XML:
         StringWriter sw = new StringWriter();
-        Document document = parseXmlFile(result);
+        Document document = StringUtils.parseXmlFile(result);
         Node node = document.getElementsByTagName(recordListField).item(0);
         Transformer t = TransformerFactory.newInstance().newTransformer();
         t.setOutputProperty(OutputKeys.INDENT, "yes");
@@ -223,32 +211,17 @@ public class ApiHarvester {
         JSONArray jsonArray = (JSONArray) json.get(recordListField);
         return jsonArray.length();
       case XML:
-        Document document = parseXmlFile(response);
+        Document document = StringUtils.parseXmlFile(response);
         return document.getElementsByTagName(recordListField).getLength();
     }
     return 0;
   }
 
-  private enum ResultFormat {
-    JSON, XML
-  }
-
-  private Document parseXmlFile(String in) {
-    try {
-      DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-      DocumentBuilder db = dbf.newDocumentBuilder();
-      InputSource is = new InputSource(new StringReader(in));
-      return db.parse(is);
-    } catch (ParserConfigurationException e) {
-      throw new RuntimeException(e);
-    } catch (SAXException e) {
-      throw new RuntimeException(e);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
   public void setRootElementName(String rootElementName) {
     this.rootElementName = rootElementName;
+  }
+
+  public void setListElementNames(String listElementNames) {
+    this.listElementNames = listElementNames;
   }
 }
