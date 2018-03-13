@@ -1,7 +1,7 @@
 **API-HARVESTER**
  
 A tool for harvesting data from an api  
-Very generic implementation that could workfor some cases that accept an offset and limit query parameters.
+Very generic implementation that could work for some cases that accept an offset and limit query parameters.
 
 **Usage**
 
@@ -38,8 +38,8 @@ The user who runs the .jar file should have write access to the directories spec
 `directory.name.prefix` The directory prefix that the harvest should have, for example if it's set to harvest then the result should be something like `harvest-2017_03_27_1746/`.  
 `json.convert.to.xml` true or false. Convert json received data automatically to xml.  
 `offset.parameter.name` The query parameter name used for offset.  
-`limit.parameter.name`  The query parameter name used for limit.
+`limit.parameter.name`  The query parameter name used for limit.  
 `offset` The value of the offset query parameter.  
-`limit`  The value of the limit query parameter.
+`limit`  The value of the limit query parameter.  
 `record.list.field` The element that hold the list/array of the records to be extracted from the response.  
 `harvest.output.directory` The root directory where all the harvest directory should reside.  
